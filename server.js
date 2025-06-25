@@ -39,7 +39,7 @@ const startServer = async () => {
       useUnifiedTopology: true,
     });
 
-    console.log('✅ MongoDB connected');
+    console.log("✅ MongoDB successfully connected");
 
     await createFirstInviteCode();
 
