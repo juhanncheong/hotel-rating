@@ -13,7 +13,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use('/api/users', userRoutes);
-app.use('/api', adminRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/user', require('./routes/userRoutes'));
 
 // Test route
