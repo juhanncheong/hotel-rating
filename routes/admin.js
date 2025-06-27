@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const AdminUser = require("../models/AdminUser");
 const { updateUserVipRank } = require("../controllers/userController");
+const { adminUpdateUser } = require("../controllers/userController");
 
 // POST /api/admin/login
 router.post("/login", async (req, res) => {
@@ -33,5 +34,6 @@ router.post("/login", async (req, res) => {
 });
 
 router.post("/update-vip-rank", updateUserVipRank);
+router.post("/update-user", adminUpdateUser);
 
 module.exports = router;

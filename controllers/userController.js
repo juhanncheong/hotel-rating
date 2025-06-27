@@ -191,3 +191,27 @@ exports.updateUserVipRank = async (req, res) => {
     res.status(500).json({ message: "Server error." });
   }
 };
+
+exports.adminUpdateUser = async (req, res) => {
+  try {
+    const { userId, phone, password, vipRank } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found." });
+
+    if (phone) user.phone = phone;
+    if (password && password.trim() !== "") {
+      const bcrypt = require("bcryptjs");
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(password, salt);
+    }
+    if (vipRank) user.vipRank = vipRank;
+
+    await user.save();
+
+    res.status(200).json({ message: "User updated successfully." });
+  } catch (err) {
+    console.error("⚠️ Update User Error:", err);
+    res.status(500).json({ message: "Server error." });
+  }
+};
