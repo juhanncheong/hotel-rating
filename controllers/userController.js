@@ -2,6 +2,7 @@ const User = require('../models/User');
 const InvitationCode = require('../models/InvitationCode');
 const axios = require('axios');
 const { registerUser, updateUserBalance, getAllUsers } = require("../controllers/userController");
+const { getUserById } = require("../controllers/userController");
 
 exports.registerUser = async (req, res) => {
   try {
@@ -112,5 +113,29 @@ exports.loginUser = async (req, res) => {
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ message: "Server error during login." });
+  }
+};
+
+exports.getUserById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    res.status(200).json({
+      user: {
+        id: user._id,
+        phone: user.phone,
+        balance: user.balance,
+        ipAddress: user.ipAddress,
+        ipCountry: user.ipCountry,
+        createdAt: user.createdAt
+      }
+    });
+  } catch (err) {
+    console.error("Get user error:", err);
+    res.status(500).json({ message: "Server error." });
   }
 };
