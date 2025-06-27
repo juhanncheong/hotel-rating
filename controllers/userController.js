@@ -57,20 +57,34 @@ const newUser = await User.create({
 
 exports.updateUserBalance = async (req, res) => {
   try {
-    const { userId, newBalance } = req.body;
+    const { userId, depositAmount } = req.body;
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    user.balance = newBalance;
+    // ✅ Add deposit to balance
+    user.balance += depositAmount;
+
+    // ✅ Check if this deposit upgrades their VIP level
+    if (depositAmount > user.highestSingleDeposit) {
+      user.highestSingleDeposit = depositAmount;
+      user.vipRank = getVipRank(depositAmount);
+    }
+
     await user.save();
 
-    res.status(200).json({ message: "Balance updated", balance: user.balance });
+    res.status(200).json({
+      message: "Balance updated",
+      balance: user.balance,
+      vipRank: user.vipRank,
+      highestSingleDeposit: user.highestSingleDeposit,
+    });
   } catch (err) {
     console.error("⚠️ Update Balance Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 exports.getAllUsers = async (req, res) => {
   try {
@@ -129,6 +143,8 @@ exports.getUserById = async (req, res) => {
         id: user._id,
         phone: user.phone,
         balance: user.balance,
+        vipRank: user.vipRank,
+        highestSingleDeposit: user.highestSingleDeposit,
         ipAddress: user.ipAddress,
         ipCountry: user.ipCountry,
         createdAt: user.createdAt
@@ -139,3 +155,4 @@ exports.getUserById = async (req, res) => {
     res.status(500).json({ message: "Server error." });
   }
 };
+
