@@ -165,3 +165,29 @@ exports.getUserById = async (req, res) => {
   }
 };
 
+exports.updateUserVipRank = async (req, res) => {
+  try {
+    const { userId, vipRank } = req.body;
+
+    const allowedRanks = ["Bronze", "Silver", "Gold"];
+    if (!allowedRanks.includes(vipRank)) {
+      return res.status(400).json({ message: "Invalid VIP rank." });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    user.vipRank = vipRank;
+    await user.save();
+
+    res.status(200).json({
+      message: "VIP rank updated successfully.",
+      vipRank: user.vipRank,
+    });
+  } catch (err) {
+    console.error("⚠️ Update VIP Rank Error:", err);
+    res.status(500).json({ message: "Server error." });
+  }
+};
