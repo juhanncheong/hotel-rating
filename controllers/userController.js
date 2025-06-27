@@ -94,7 +94,10 @@ exports.updateUserBalance = async (req, res) => {
 
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.find({}, "phone balance ipAddress ipCountry createdAt");
+    const users = await User.find(
+  {},
+  "phone balance vipRank ipAddress ipCountry createdAt"
+);
     res.json(users);
   } catch (err) {
     console.error("❌ Get Users Error:", err);
