@@ -80,3 +80,37 @@ exports.getAllUsers = async (req, res) => {
     res.status(500).json({ message: "Failed to get users" });
   }
 };
+
+exports.loginUser = async (req, res) => {
+  try {
+    const { phone, password } = req.body;
+
+    // Validate fields
+    if (!phone || !password) {
+      return res.status(400).json({ message: "Phone and password are required." });
+    }
+
+    // Check if user exists
+    const user = await User.findOne({ phone });
+    if (!user) {
+      return res.status(400).json({ message: "User not found." });
+    }
+
+    // Check password
+    if (user.password !== password) {
+      return res.status(400).json({ message: "Invalid password." });
+    }
+
+    res.status(200).json({
+      message: "Login successful.",
+      user: {
+        id: user._id,
+        phone: user.phone,
+        balance: user.balance,
+      },
+    });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ message: "Server error during login." });
+  }
+};
