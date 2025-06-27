@@ -4,6 +4,12 @@ const axios = require('axios');
 const { registerUser, updateUserBalance, getAllUsers } = require("../controllers/userController");
 const { getUserById } = require("../controllers/userController");
 
+function getVipRank(amount) {
+  if (amount >= 5000) return "Gold";
+  if (amount >= 300) return "Silver";
+  return "Bronze";
+}
+
 exports.registerUser = async (req, res) => {
   try {
     const { phone, password, confirmPassword, invitationCode } = req.body;
