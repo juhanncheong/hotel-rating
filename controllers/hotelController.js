@@ -3,8 +3,14 @@ const Hotel = require("../models/Hotel");
 // ✅ Admin creates a hotel
 exports.createHotel = async (req, res) => {
   try {
-    const { name, photoUrl, description, country } = req.body;
-    const hotel = await Hotel.create({ name, photoUrl, description, country });
+    const { name, photoUrl, description, country, price } = req.body;
+    const hotel = await Hotel.create({
+       name,
+       photoUrl,
+       description,
+       country,
+       price
+    });
     res.json({ success: true, hotel });
   } catch (error) {
     console.error(error);
