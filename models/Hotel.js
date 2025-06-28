@@ -11,6 +11,10 @@ const hotelSchema = new mongoose.Schema({
   },
   description: String,
   country: String,
+  price: {
+    type: Number,
+    required: true,
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model("Hotel", hotelSchema);
