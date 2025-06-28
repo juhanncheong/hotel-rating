@@ -23,6 +23,16 @@ exports.createOrder = async (req, res) => {
         .json({ success: false, message: "Hotel not found" });
     }
 
+    // ✅ Check if user already reached 30 orders
+const orderCount = await Order.countDocuments({ userId });
+
+if (orderCount >= 30) {
+  return res.status(400).json({
+    success: false,
+    message: "You have reached the maximum number of 30 orders. Please contact customer service.",
+  });
+}
+
     // ✅ Check user balance
     if (user.balance < hotel.price) {
       return res.status(400).json({
