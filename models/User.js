@@ -18,6 +18,10 @@ const userSchema = new mongoose.Schema({
     enum: ["Bronze", "Silver", "Gold"],
     default: "Bronze"
   },
+  orderCount: {
+  type: Number,
+  default: 0
+},
   createdAt: { type: Date, default: Date.now },
 });
 

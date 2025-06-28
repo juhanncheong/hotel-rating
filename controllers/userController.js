@@ -156,6 +156,7 @@ exports.getUserById = async (req, res) => {
         highestSingleDeposit: user.highestSingleDeposit,
         ipAddress: user.ipAddress,
         ipCountry: user.ipCountry,
+        orderCount: user.orderCount,
         createdAt: user.createdAt
       }
     });

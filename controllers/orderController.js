@@ -55,6 +55,9 @@ exports.createOrder = async (req, res) => {
     // ✅ Refund price + commission
     user.balance += hotel.price + commission;
 
+    // ✅ Increment order count
+    user.orderCount += 1;
+
     // ✅ Save updated user balance
     await user.save();
 
