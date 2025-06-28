@@ -79,3 +79,29 @@ exports.createOrder = async (req, res) => {
     });
   }
 };
+
+exports.getUserOrderCount = async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing userId parameter",
+      });
+    }
+
+    const orderCount = await Order.countDocuments({ userId });
+
+    return res.json({
+      success: true,
+      count: orderCount,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching order count",
+    });
+  }
+};
