@@ -4,6 +4,7 @@ const AdminUser = require("../models/AdminUser");
 const { updateUserVipRank } = require("../controllers/userController");
 const { adminUpdateUser } = require("../controllers/userController");
 const { createHotel, getAllHotels, updateHotel, deleteHotel, } = require("../controllers/hotelController");
+const { resetUserOrders } = require("../controllers/userController");
 
 // POST /api/admin/login
 router.post("/login", async (req, res) => {
@@ -40,4 +41,6 @@ router.post("/hotels", createHotel);
 router.get("/hotels", getAllHotels);
 router.put("/hotels/:id", updateHotel);
 router.delete("/hotels/:id", deleteHotel);
+router.post("/user/:userId/reset-orders", resetUserOrders);
+
 module.exports = router;
