@@ -3,7 +3,7 @@ const router = express.Router();
 const AdminUser = require("../models/AdminUser");
 const { updateUserVipRank } = require("../controllers/userController");
 const { adminUpdateUser } = require("../controllers/userController");
-const { createHotel, getAllHotels } = require("../controllers/hotelController");
+const { createHotel, getAllHotels, updateHotel, deleteHotel, } = require("../controllers/hotelController");
 
 // POST /api/admin/login
 router.post("/login", async (req, res) => {
@@ -38,5 +38,6 @@ router.post("/update-vip-rank", updateUserVipRank);
 router.post("/update-user", adminUpdateUser);
 router.post("/hotels", createHotel);
 router.get("/hotels", getAllHotels);
-
+router.put("/hotels/:id", updateHotel);
+router.delete("/hotels/:id", deleteHotel);
 module.exports = router;
