@@ -17,6 +17,7 @@ router.get("/admin/users", getAllUsers);
 router.get("/random-hotel", getRandomHotel);
 router.post("/orders", createOrder);
 router.get("/orders-count", getUserOrderCount);
+router.get("/:userId/today-profit", require("../controllers/orderController").getTodayProfit);
 
 // ✅ Dynamic :id route goes LAST
 router.get("/:id", getUserById);

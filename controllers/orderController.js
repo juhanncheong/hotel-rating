@@ -130,3 +130,47 @@ exports.getUserOrderCount = async (req, res) => {
     });
   }
 };
+
+exports.getTodayProfit = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    // calculate ET midnight boundaries
+    const now = new Date();
+
+    // convert to ET timezone
+    const offset = -4; // EDT
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const etDate = new Date(utc + (offset * 3600000));
+
+    // get today's midnight in ET
+    etDate.setHours(0, 0, 0, 0);
+    const start = new Date(etDate);
+
+    etDate.setHours(23, 59, 59, 999);
+    const end = new Date(etDate);
+
+    const todayOrders = await Order.find({
+      userId,
+      createdAt: { $gte: start, $lte: end },
+    });
+
+    let totalProfit = 0;
+
+    for (const order of todayOrders) {
+      totalProfit += order.commission || 0;
+    }
+
+    res.json({
+      success: true,
+      todayProfit: totalProfit.toFixed(2),
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to calculate today's profit.",
+    });
+  }
+};
