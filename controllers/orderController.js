@@ -135,24 +135,28 @@ exports.getTodayProfit = async (req, res) => {
   try {
     const userId = req.params.userId;
 
-    // calculate ET midnight boundaries
-    const now = new Date();
+    // Get current UTC date
+    const nowUtc = new Date();
 
-    // convert to ET timezone
-    const offset = -4; // EDT
-    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const etDate = new Date(utc + (offset * 3600000));
+    // Convert to ET (UTC-4 or UTC-5 depending on DST)
+    const etOffsetMinutes = -240; // for EDT
+    const nowEt = new Date(nowUtc.getTime() + etOffsetMinutes * 60000);
 
-    // get today's midnight in ET
-    etDate.setHours(0, 0, 0, 0);
-    const start = new Date(etDate);
+    // Get ET midnight
+    const startEt = new Date(nowEt);
+    startEt.setHours(0, 0, 0, 0);
 
-    etDate.setHours(23, 59, 59, 999);
-    const end = new Date(etDate);
+    // Calculate end of day ET
+    const endEt = new Date(startEt);
+    endEt.setDate(endEt.getDate() + 1);
+
+    // Convert back to UTC
+    const startUtc = new Date(startEt.getTime() - etOffsetMinutes * 60000);
+    const endUtc = new Date(endEt.getTime() - etOffsetMinutes * 60000);
 
     const todayOrders = await Order.find({
       userId,
-      createdAt: { $gte: start, $lte: end },
+      createdAt: { $gte: startUtc, $lt: endUtc },
     });
 
     let totalProfit = 0;
