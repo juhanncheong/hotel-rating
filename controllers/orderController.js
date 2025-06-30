@@ -1,6 +1,8 @@
 const Order = require("../models/Order");
 const Hotel = require("../models/Hotel");
 const Settings = require("../models/Settings");
+const User = require("../models/User");
+const user = await User.findById(userId);
 
 exports.createOrder = async (req, res) => {
   try {
@@ -23,15 +25,21 @@ exports.createOrder = async (req, res) => {
         .json({ success: false, message: "Hotel not found" });
     }
 
-    // ✅ Check if user already reached 30 orders
-    const orderCount = await Order.countDocuments({ userId });
+// ✅ Get user's reset date (default to old date if never reset)
+const resetDate = user.orderResetAt || new Date(0);
 
-    if (orderCount >= 30) {
-      return res.status(400).json({
-        success: false,
-        message: "You have reached the maximum number of 30 orders. Please contact customer service.",
-      });
-    }
+// ✅ Count only orders placed after reset date
+const orderCount = await Order.countDocuments({
+  userId,
+  createdAt: { $gte: resetDate }
+});
+
+if (orderCount >= 30) {
+  return res.status(400).json({
+    success: false,
+    message: "You have reached the maximum number of 30 orders. Please contact customer service.",
+  });
+}
 
     // ✅ Check user balance
     if (user.balance < hotel.price) {
@@ -94,7 +102,22 @@ exports.getUserOrderCount = async (req, res) => {
       });
     }
 
-    const orderCount = await Order.countDocuments({ userId });
+    const User = require("../models/User");
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    const resetDate = user.orderResetAt || new Date(0);
+
+    const orderCount = await Order.countDocuments({
+      userId,
+      createdAt: { $gte: resetDate }
+    });
 
     return res.json({
       success: true,

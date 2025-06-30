@@ -19,9 +19,13 @@ const userSchema = new mongoose.Schema({
     default: "Bronze"
   },
   orderCount: {
-  type: Number,
-  default: 0
-},
+    type: Number,
+    default: 0
+  },
+  orderResetAt: {
+    type: Date,
+    default: new Date(0),
+  },
   createdAt: { type: Date, default: Date.now },
 });
 
