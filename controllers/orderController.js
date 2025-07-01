@@ -7,87 +7,110 @@ exports.createOrder = async (req, res) => {
   try {
     const { userId, hotelId } = req.body;
 
-    // ✅ Fetch user
-    const User = require("../models/User");
     const user = await User.findById(userId);
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
-
-    // ✅ Fetch hotel
     const hotel = await Hotel.findById(hotelId);
-    if (!hotel) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Hotel not found" });
-    }
 
-// ✅ Get user's reset date (default to old date if never reset)
-const resetDate = user.orderResetAt || new Date(0);
-
-// ✅ Count only orders placed after reset date
-const orderCount = await Order.countDocuments({
-  userId,
-  createdAt: { $gte: resetDate }
-});
-
-if (orderCount >= 30) {
-  return res.status(400).json({
-    success: false,
-    message: "You have reached the maximum number of 30 orders. Please contact customer service.",
-  });
-}
-
-    // ✅ Check user balance
-    if (user.balance < hotel.price) {
-      return res.status(400).json({
+    if (!user || !hotel) {
+      return res.status(404).json({
         success: false,
-        message:
-          "Insufficient balance. Please contact customer service.",
+        message: "User or hotel not found.",
       });
     }
 
-    // ✅ Deduct hotel price
-    user.balance -= hotel.price;
+    // ✅ Check if user has an active trial bonus
+    if (user.trialBonus?.isActive && user.trialBonus.amount >= hotel.price) {
+      // ✅ Deduct hotel price temporarily from trial bonus
+      user.trialBonus.amount -= hotel.price;
 
-    // ✅ Get commission rate from Settings
-    const setting = await Settings.findOne({ key: "commissionRate" });
-    const commissionRate = setting ? setting.value : 0;
+      // ✅ Get commission rate from Settings
+      const setting = await Settings.findOne({ key: "commissionRate" });
+      const commissionRate = setting ? setting.value : 0;
 
-    // ✅ Calculate commission
-    const commission = (hotel.price * commissionRate) / 100;
+      // ✅ Calculate commission
+      const commission = (hotel.price * commissionRate) / 100;
 
-    // ✅ Refund price + commission
-    user.balance += hotel.price + commission;
+      // ✅ Add commission to real balance
+      user.balance += commission;
 
-    // ✅ Increment order count
-    user.orderCount += 1;
-    
-    // ✅ Check if trial bonus should be automatically cancelled
-    if (user.trialBonus.isActive && user.orderCount >= 30) {
-      user.trialBonus.isActive = false;
-      user.trialBonus.status = "completed";
-      user.trialBonus.amount = 0;
+      // ✅ Refund trial bonus
+      user.trialBonus.amount += hotel.price;
+
+      // ✅ Increment order count
+      user.orderCount += 1;
+
+      // ✅ Check if trial bonus should be automatically cancelled
+      if (user.orderCount >= 30) {
+        user.trialBonus.isActive = false;
+        user.trialBonus.status = "completed";
+        user.trialBonus.amount = 0;
+      }
+
+      // ✅ Save updated user data
+      await user.save();
+
+      // ✅ Create the order
+      const order = await Order.create({
+        userId,
+        hotelId,
+        price: hotel.price,
+        commission,
+      });
+
+      return res.json({
+        success: true,
+        order,
+      });
+
+    } else {
+      // ✅ Proceed with real balance logic
+
+      if (user.balance < hotel.price) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Insufficient balance. Please contact customer service.",
+        });
+      }
+
+      // ✅ Deduct hotel price
+      user.balance -= hotel.price;
+
+      // ✅ Get commission rate from Settings
+      const setting = await Settings.findOne({ key: "commissionRate" });
+      const commissionRate = setting ? setting.value : 0;
+
+      // ✅ Calculate commission
+      const commission = (hotel.price * commissionRate) / 100;
+
+      // ✅ Refund price + commission
+      user.balance += hotel.price + commission;
+
+      // ✅ Increment order count
+      user.orderCount += 1;
+
+      // ✅ Check if trial bonus should be automatically cancelled
+      if (user.trialBonus.isActive && user.orderCount >= 30) {
+        user.trialBonus.isActive = false;
+        user.trialBonus.status = "completed";
+        user.trialBonus.amount = 0;
+      }
+
+      // ✅ Save updated user data
+      await user.save();
+
+      // ✅ Create the order
+      const order = await Order.create({
+        userId,
+        hotelId,
+        price: hotel.price,
+        commission,
+      });
+
+      return res.json({
+        success: true,
+        order,
+      });
     }
-
-    // ✅ Save updated user balance
-    await user.save();
-
-    // ✅ Create the order
-    const order = await Order.create({
-      userId,
-      hotelId,
-      price: hotel.price,
-      commission,
-    });
-
-    // ✅ Return success response
-    return res.json({
-      success: true,
-      order,
-    });
   } catch (err) {
     console.error(err);
     res.status(500).json({
@@ -96,6 +119,7 @@ if (orderCount >= 30) {
     });
   }
 };
+
 
 exports.getUserOrderCount = async (req, res) => {
   try {
