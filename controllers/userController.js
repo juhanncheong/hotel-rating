@@ -1,7 +1,6 @@
 const User = require('../models/User');
 const InvitationCode = require('../models/InvitationCode');
 const axios = require('axios');
-const userController = require("../controllers/userController");
 
 
 function getVipRank(amount) {
