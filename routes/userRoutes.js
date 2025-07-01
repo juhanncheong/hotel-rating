@@ -22,7 +22,8 @@ router.get("/orders-count", getUserOrderCount);
 router.get("/:userId/today-profit", require("../controllers/orderController").getTodayProfit);
 router.post("/user/:id/trial-bonus", addTrialBonus);
 router.patch("/user/:id/trial-bonus/cancel", cancelTrialBonus);
-router.post("/trial-bonus", userController.addTrialBonus);
+router.post("/trial-bonus", addTrialBonus);
+
 // ✅ Dynamic :id route goes LAST
 router.get("/:id", getUserById);
 
