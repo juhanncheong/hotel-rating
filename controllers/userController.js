@@ -1,8 +1,8 @@
 const User = require('../models/User');
 const InvitationCode = require('../models/InvitationCode');
 const axios = require('axios');
-const { registerUser, updateUserBalance, getAllUsers } = require("../controllers/userController");
-const { getUserById } = require("../controllers/userController");
+const userController = require("../controllers/userController");
+
 
 function getVipRank(amount) {
   if (amount >= 5000) return "Gold";
