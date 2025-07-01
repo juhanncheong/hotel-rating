@@ -94,7 +94,7 @@ exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.find(
       {},
-      "phone balance vipRank ipAddress ipCountry createdAt orderCount"
+      "phone balance vipRank ipAddress ipCountry createdAt orderCount trialBonus"
     );
     res.json(users);
   } catch (err) {
