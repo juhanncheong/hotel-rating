@@ -64,6 +64,13 @@ if (orderCount >= 30) {
 
     // ✅ Increment order count
     user.orderCount += 1;
+    
+    // ✅ Check if trial bonus should be automatically cancelled
+    if (user.trialBonus.isActive && user.orderCount >= 30) {
+      user.trialBonus.isActive = false;
+      user.trialBonus.status = "completed";
+      user.trialBonus.amount = 0;
+    }
 
     // ✅ Save updated user balance
     await user.save();

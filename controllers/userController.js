@@ -235,3 +235,53 @@ exports.resetUserOrders = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error." });
   }
 };
+
+exports.addTrialBonus = async (req, res) => {
+  try {
+    const { userId, amount } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    user.trialBonus.amount = amount;
+    user.trialBonus.isActive = true;
+    user.trialBonus.status = "active";
+
+    await user.save();
+
+    res.status(200).json({
+      message: "Trial bonus added/updated successfully.",
+      trialBonus: user.trialBonus,
+    });
+  } catch (err) {
+    console.error("⚠️ Add Trial Bonus Error:", err);
+    res.status(500).json({ message: "Server error." });
+  }
+};
+
+exports.cancelTrialBonus = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    user.trialBonus.isActive = false;
+    user.trialBonus.amount = 0;
+    user.trialBonus.status = "cancelled";
+
+    await user.save();
+
+    res.status(200).json({
+      message: "Trial bonus cancelled successfully.",
+      trialBonus: user.trialBonus,
+    });
+  } catch (err) {
+    console.error("⚠️ Cancel Trial Bonus Error:", err);
+    res.status(500).json({ message: "Server error." });
+  }
+};

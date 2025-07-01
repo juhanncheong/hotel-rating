@@ -22,6 +22,28 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+
+  orderCount: {
+  type: Number,
+  default: 0
+},
+
+trialBonus: {
+  amount: {
+    type: Number,
+    default: 0
+  },
+  isActive: {
+    type: Boolean,
+    default: false
+  },
+  status: {
+    type: String,
+    enum: ["active", "completed", "cancelled"],
+    default: "active"
+  }
+},
+
   orderResetAt: {
     type: Date,
     default: new Date(0),
