@@ -157,7 +157,8 @@ exports.getUserById = async (req, res) => {
         ipAddress: user.ipAddress,
         ipCountry: user.ipCountry,
         orderCount: user.orderCount,
-        createdAt: user.createdAt
+        createdAt: user.createdAt,
+        trialBonus: user.trialBonus,
       }
     });
   } catch (err) {
