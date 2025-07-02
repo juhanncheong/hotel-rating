@@ -90,54 +90,67 @@ exports.startOrder = async (req, res) => {
   try {
     const { userId } = req.body;
 
-    // We’ll add logic here next.
     const user = await User.findById(userId);
-if (!user) {
-  return res.status(404).json({
-    success: false,
-    message: "User not found.",
-  });
-}
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
 
-let balance;
-if (user.trialBonus?.isActive) {
-  balance = user.trialBonus.amount;
-} else {
-  balance = user.balance;
-}
+    // ✅ Check if the user already has a pending order
+    const existingPendingOrder = await Order.findOne({
+      userId,
+      status: "pending"
+    }).populate("hotelId");
 
-const tolerance = 0.10;
-const minPrice = balance * (1 - tolerance);
-const maxPrice = balance;
+    if (existingPendingOrder) {
+      return res.json({
+        success: true,
+        hotel: existingPendingOrder.hotelId,
+        orderId: existingPendingOrder._id,
+      });
+    }
 
-const hotels = await Hotel.find({
-  price: { $gte: minPrice, $lte: maxPrice }
-});
+    // ✅ No pending order → create new one
+    let balance;
+    if (user.trialBonus?.isActive) {
+      balance = user.trialBonus.amount;
+    } else {
+      balance = user.balance;
+    }
 
-if (hotels.length === 0) {
-  return res.status(404).json({
-    success: false,
-    message: "No hotels available in your price range.",
-  });
-}
+    const tolerance = 0.10;
+    const minPrice = balance * (1 - tolerance);
+    const maxPrice = balance;
 
-const randomIndex = Math.floor(Math.random() * hotels.length);
-const hotel = hotels[randomIndex];
+    const hotels = await Hotel.find({
+      price: { $gte: minPrice, $lte: maxPrice }
+    });
 
-const pendingOrder = await Order.create({
-  userId,
-  hotelId: hotel._id,
-  price: hotel.price,
-  commission: 0,
-  status: "pending"
-});
+    if (hotels.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No hotels available in your price range.",
+      });
+    }
 
-return res.json({
-  success: true,
-  orderId: pendingOrder._id,
-  hotel
-});
+    const randomIndex = Math.floor(Math.random() * hotels.length);
+    const hotel = hotels[randomIndex];
 
+    const pendingOrder = await Order.create({
+      userId,
+      hotelId: hotel._id,
+      price: hotel.price,
+      commission: 0,
+      status: "pending"
+    });
+
+    return res.json({
+      success: true,
+      orderId: pendingOrder._id,
+      hotel
+    });
 
   } catch (error) {
     console.error(error);
@@ -147,6 +160,7 @@ return res.json({
     });
   }
 };
+
 
 exports.submitOrder = async (req, res) => {
   try {
