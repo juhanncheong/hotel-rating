@@ -3,124 +3,6 @@ const Hotel = require("../models/Hotel");
 const Settings = require("../models/Settings");
 const User = require("../models/User");
 
-exports.createOrder = async (req, res) => {
-  try {
-    const { userId, hotelId } = req.body;
-
-    const user = await User.findById(userId);
-    const hotel = await Hotel.findById(hotelId);
-
-    if (!user || !hotel) {
-      return res.status(404).json({
-        success: false,
-        message: "User or hotel not found.",
-      });
-    }
-
-    // ✅ Check if user has an active trial bonus
-    if (user.trialBonus?.isActive && user.trialBonus.amount >= hotel.price) {
-      // ✅ Deduct hotel price temporarily from trial bonus
-      user.trialBonus.amount -= hotel.price;
-
-      // ✅ Get commission rate from Settings
-      const setting = await Settings.findOne({ key: "commissionRate" });
-      const commissionRate = setting ? setting.value : 0;
-
-      // ✅ Calculate commission
-      const commission = (hotel.price * commissionRate) / 100;
-
-      // ✅ Add commission to real balance
-      user.balance += commission;
-
-      // ✅ Refund trial bonus
-      user.trialBonus.amount += hotel.price;
-
-      // ✅ Increment order count
-      user.orderCount += 1;
-
-      // ✅ Check if trial bonus should be automatically cancelled
-      if (user.orderCount >= 30) {
-        user.trialBonus.isActive = false;
-        user.trialBonus.status = "completed";
-        user.trialBonus.amount = 0;
-      }
-
-      // ✅ Save updated user data
-      await user.save();
-
-      // ✅ Create the order
-      const order = await Order.create({
-        userId,
-        hotelId,
-        price: hotel.price,
-        commission,
-      });
-
-      return res.json({
-        success: true,
-        order,
-      });
-
-    } else {
-      // ✅ Proceed with real balance logic
-
-      if (user.balance < hotel.price) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Insufficient balance. Please contact customer service.",
-        });
-      }
-
-      // ✅ Deduct hotel price
-      user.balance -= hotel.price;
-
-      // ✅ Get commission rate from Settings
-      const setting = await Settings.findOne({ key: "commissionRate" });
-      const commissionRate = setting ? setting.value : 0;
-
-      // ✅ Calculate commission
-      const commission = (hotel.price * commissionRate) / 100;
-
-      // ✅ Refund price + commission
-      user.balance += hotel.price + commission;
-
-      // ✅ Increment order count
-      user.orderCount += 1;
-
-      // ✅ Check if trial bonus should be automatically cancelled
-      if (user.trialBonus.isActive && user.orderCount >= 30) {
-        user.trialBonus.isActive = false;
-        user.trialBonus.status = "completed";
-        user.trialBonus.amount = 0;
-      }
-
-      // ✅ Save updated user data
-      await user.save();
-
-      // ✅ Create the order
-      const order = await Order.create({
-        userId,
-        hotelId,
-        price: hotel.price,
-        commission,
-      });
-
-      return res.json({
-        success: true,
-        order,
-      });
-    }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({
-      success: false,
-      message: "Error creating order",
-    });
-  }
-};
-
-
 exports.getUserOrderCount = async (req, res) => {
   try {
     const { userId } = req.query;
@@ -132,7 +14,6 @@ exports.getUserOrderCount = async (req, res) => {
       });
     }
 
-    const User = require("../models/User");
     const user = await User.findById(userId);
 
     if (!user) {
@@ -166,22 +47,17 @@ exports.getTodayProfit = async (req, res) => {
   try {
     const userId = req.params.userId;
 
-    // Get current UTC date
     const nowUtc = new Date();
 
-    // Convert to ET (UTC-4 or UTC-5 depending on DST)
-    const etOffsetMinutes = -240; // for EDT
+    const etOffsetMinutes = -240;
     const nowEt = new Date(nowUtc.getTime() + etOffsetMinutes * 60000);
 
-    // Get ET midnight
     const startEt = new Date(nowEt);
     startEt.setHours(0, 0, 0, 0);
 
-    // Calculate end of day ET
     const endEt = new Date(startEt);
     endEt.setDate(endEt.getDate() + 1);
 
-    // Convert back to UTC
     const startUtc = new Date(startEt.getTime() - etOffsetMinutes * 60000);
     const endUtc = new Date(endEt.getTime() - etOffsetMinutes * 60000);
 
@@ -206,6 +82,178 @@ exports.getTodayProfit = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to calculate today's profit.",
+    });
+  }
+};
+
+exports.startOrder = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    // We’ll add logic here next.
+    const user = await User.findById(userId);
+if (!user) {
+  return res.status(404).json({
+    success: false,
+    message: "User not found.",
+  });
+}
+
+let balance;
+if (user.trialBonus?.isActive) {
+  balance = user.trialBonus.amount;
+} else {
+  balance = user.balance;
+}
+
+const tolerance = 0.10;
+const minPrice = balance * (1 - tolerance);
+const maxPrice = balance;
+
+const hotels = await Hotel.find({
+  price: { $gte: minPrice, $lte: maxPrice }
+});
+
+if (hotels.length === 0) {
+  return res.status(404).json({
+    success: false,
+    message: "No hotels available in your price range.",
+  });
+}
+
+const randomIndex = Math.floor(Math.random() * hotels.length);
+const hotel = hotels[randomIndex];
+
+const pendingOrder = await Order.create({
+  userId,
+  hotelId: hotel._id,
+  price: hotel.price,
+  commission: 0,
+  status: "pending"
+});
+
+return res.json({
+  success: true,
+  orderId: pendingOrder._id,
+  hotel
+});
+
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Error starting order.",
+    });
+  }
+};
+
+exports.submitOrder = async (req, res) => {
+  try {
+    const { userId, orderId } = req.body;
+
+    // We’ll add full logic next.
+
+const user = await User.findById(userId);
+if (!user) {
+  return res.status(404).json({
+    success: false,
+    message: "User not found.",
+  });
+}
+
+const order = await Order.findById(orderId).populate("hotelId");
+if (!order) {
+  return res.status(404).json({
+    success: false,
+    message: "Order not found.",
+  });
+}
+
+if (order.status === "completed") {
+  return res.status(400).json({
+    success: false,
+    message: "Order has already been completed.",
+  });
+}
+
+const hotel = order.hotelId;
+
+// Check affordability
+if (user.trialBonus?.isActive && user.trialBonus.amount >= hotel.price) {
+  // Trial balance logic
+  user.trialBonus.amount -= hotel.price;
+
+  // Get commission rate
+  const setting = await Settings.findOne({ key: "commissionRate" });
+  const commissionRate = setting ? setting.value : 0;
+  const commission = (hotel.price * commissionRate) / 100;
+
+  user.balance += commission;
+
+  user.trialBonus.amount += hotel.price;
+
+  user.orderCount += 1;
+
+  if (user.orderCount >= 30) {
+    user.trialBonus.isActive = false;
+    user.trialBonus.status = "completed";
+    user.trialBonus.amount = 0;
+  }
+
+  order.commission = commission;
+  order.status = "completed";
+  await user.save();
+  await order.save();
+
+  return res.json({
+    success: true,
+    order,
+    hotel
+  });
+
+} else {
+  // Real balance logic
+  if (user.balance < hotel.price) {
+    return res.status(400).json({
+      success: false,
+      message: "Insufficient real balance for this hotel.",
+    });
+  }
+
+  user.balance -= hotel.price;
+
+  const setting = await Settings.findOne({ key: "commissionRate" });
+  const commissionRate = setting ? setting.value : 0;
+  const commission = (hotel.price * commissionRate) / 100;
+
+  user.balance += hotel.price + commission;
+
+  user.orderCount += 1;
+
+  if (user.trialBonus.isActive && user.orderCount >= 30) {
+    user.trialBonus.isActive = false;
+    user.trialBonus.status = "completed";
+    user.trialBonus.amount = 0;
+  }
+
+  order.commission = commission;
+  order.status = "completed";
+  await user.save();
+  await order.save();
+
+  return res.json({
+    success: true,
+    order,
+    hotel
+  });
+}
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Error submitting order."
     });
   }
 };
