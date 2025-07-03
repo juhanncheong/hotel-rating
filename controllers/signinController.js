@@ -1,6 +1,7 @@
 const SignInReward = require("../models/SignInReward");
 const User = require("../models/User");
 const Order = require("../models/Order");
+const { getTodayEtWindowUtc } = require("../utils/dateUtils");
 
 exports.getSignInStatus = async (req, res) => {
   try {
@@ -30,26 +31,15 @@ exports.getSignInStatus = async (req, res) => {
       ? record.lastClaimDate >= today
       : false;
 
-    // Check today's order count
-    const nowUtc = new Date();
-    const etOffsetMinutes = -240;
-    const nowEt = new Date(nowUtc.getTime() + etOffsetMinutes * 60000);
-
-    const startEt = new Date(nowEt);
-    startEt.setHours(0, 0, 0, 0);
-
-    const endEt = new Date(startEt);
-    endEt.setDate(endEt.getDate() + 1);
-
-    const startUtc = new Date(startEt.getTime() - etOffsetMinutes * 60000);
-    const endUtc = new Date(endEt.getTime() - etOffsetMinutes * 60000);
+    // Fetch today's order count using your dateUtils
+    const { startUtc, endUtc } = getTodayEtWindowUtc();
 
     const todayOrderCount = await Order.countDocuments({
       userId,
       createdAt: { $gte: startUtc, $lt: endUtc }
     });
 
-    // For simplicity, let’s hardcode your 5-day rewards:
+    // Define your rewards list
     const rewardsList = [20, 30, 50, 100, 150];
     const dayIndex = record.currentDay - 1;
     const rewardAmount = rewardsList[dayIndex] || 0;
@@ -101,19 +91,8 @@ exports.claimSignInReward = async (req, res) => {
       });
     }
 
-    // Check today's order count
-    const nowUtc = new Date();
-    const etOffsetMinutes = -240;
-    const nowEt = new Date(nowUtc.getTime() + etOffsetMinutes * 60000);
-
-    const startEt = new Date(nowEt);
-    startEt.setHours(0, 0, 0, 0);
-
-    const endEt = new Date(startEt);
-    endEt.setDate(endEt.getDate() + 1);
-
-    const startUtc = new Date(startEt.getTime() - etOffsetMinutes * 60000);
-    const endUtc = new Date(endEt.getTime() - etOffsetMinutes * 60000);
+    // Fetch today's order count using your dateUtils
+    const { startUtc, endUtc } = getTodayEtWindowUtc();
 
     const todayOrderCount = await Order.countDocuments({
       userId,
@@ -127,7 +106,7 @@ exports.claimSignInReward = async (req, res) => {
       });
     }
 
-    // Define rewards array (your business logic)
+    // Define rewards list
     const rewardsList = [20, 30, 50, 100, 150];
     const dayIndex = record.currentDay - 1;
     const rewardAmount = rewardsList[dayIndex] || 0;
@@ -145,13 +124,13 @@ exports.claimSignInReward = async (req, res) => {
     if (record.currentDay < 5) {
       record.currentDay += 1;
     } else {
-      // Finished Day 5
+      // Finished Day 5 → reset to Day 1
       record.currentDay = 1;
     }
 
     await record.save();
 
-    // Optionally: add reward to user balance
+    // Add reward amount to user balance
     const user = await User.findById(userId);
     user.balance += rewardAmount;
     await user.save();
