@@ -6,6 +6,7 @@ require('dotenv').config();
 const InvitationCode = require('./models/InvitationCode');
 const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/admin');
+const signinRoutes = require("./routes/signinRoutes");
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use(express.json());
 app.use('/api/users', userRoutes);
 app.use("/api/admin", adminRoutes);
 app.use('/api/user', require('./routes/userRoutes'));
+app.use("/api/signin", signinRoutes);
 
 // Test route
 app.get('/', (req, res) => {
