@@ -271,3 +271,39 @@ if (user.trialBonus?.isActive && user.trialBonus.amount >= hotel.price) {
     });
   }
 };
+
+exports.getTodayOrderCount = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const nowUtc = new Date();
+
+    const etOffsetMinutes = -240; // Eastern Time offset
+    const nowEt = new Date(nowUtc.getTime() + etOffsetMinutes * 60000);
+
+    const startEt = new Date(nowEt);
+    startEt.setHours(0, 0, 0, 0);
+
+    const endEt = new Date(startEt);
+    endEt.setDate(endEt.getDate() + 1);
+
+    const startUtc = new Date(startEt.getTime() - etOffsetMinutes * 60000);
+    const endUtc = new Date(endEt.getTime() - etOffsetMinutes * 60000);
+
+    const count = await Order.countDocuments({
+      userId,
+      createdAt: { $gte: startUtc, $lt: endUtc },
+    });
+
+    return res.json({
+      success: true,
+      todayOrderCount: count,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching today's order count.",
+    });
+  }
+};
