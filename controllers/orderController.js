@@ -124,16 +124,21 @@ exports.startOrder = async (req, res) => {
     const minPrice = balance * (1 - tolerance);
     const maxPrice = balance;
 
-    const hotels = await Hotel.find({
-      price: { $gte: minPrice, $lte: maxPrice }
-    });
+    let hotels = await Hotel.find({
+     price: { $gte: minPrice, $lte: maxPrice }
+   });
 
-    if (hotels.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No hotels available in your price range.",
-      });
-    }
+   if (hotels.length === 0) {
+     // fallback to ANY hotel
+     hotels = await Hotel.find();
+   }
+
+   if (hotels.length === 0) {
+     return res.status(404).json({
+       success: false,
+       message: "No hotels available.",
+     });
+   }
 
     const randomIndex = Math.floor(Math.random() * hotels.length);
     const hotel = hotels[randomIndex];
