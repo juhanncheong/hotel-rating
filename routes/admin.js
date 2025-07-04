@@ -6,7 +6,7 @@ const { adminUpdateUser } = require("../controllers/userController");
 const { createHotel, getAllHotels, updateHotel, deleteHotel, } = require("../controllers/hotelController");
 const { resetUserOrders } = require("../controllers/userController");
 const { getCommissionRate, updateCommissionRate } = require("../controllers/settingsController");
-const { assignCommercialHotel } = require("../controllers/orderController");
+const { assignCommercialHotel, getCommercialAssignmentsByUser, deleteCommercialAssignment } = require("../controllers/orderController");
 
 // POST /api/admin/login
 router.post("/login", async (req, res) => {
@@ -47,5 +47,7 @@ router.post("/user/:userId/reset-orders", resetUserOrders);
 router.get("/settings/commission-rate", getCommissionRate);
 router.post("/settings/commission-rate", updateCommissionRate);
 router.post("/assign-commercial", assignCommercialHotel);
+router.get("/commercial-assignments/:userId", getCommercialAssignmentsByUser);
+router.delete("/commercial-assignments/:assignmentId", deleteCommercialAssignment);
 
 module.exports = router;

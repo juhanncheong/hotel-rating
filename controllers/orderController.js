@@ -405,3 +405,43 @@ exports.assignCommercialHotel = async (req, res) => {
     });
   }
 };
+
+exports.getCommercialAssignmentsByUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const assignments = await CommercialAssignment.find({ userId })
+      .populate('hotelId', 'name price'); // populate hotel name & price
+
+    res.json(assignments);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error fetching assignments.' });
+  }
+};
+
+exports.deleteCommercialAssignment = async (req, res) => {
+  try {
+    const { assignmentId } = req.params;
+
+    const deleted = await CommercialAssignment.findByIdAndDelete(assignmentId);
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Assignment not found.",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Commercial assignment deleted.",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting commercial assignment.",
+    });
+  }
+};
