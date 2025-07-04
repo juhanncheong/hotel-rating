@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser, updateUserBalance, getAllUsers, getUserById, addTrialBonus, cancelTrialBonus, getCommercialAssignmentForUser } = require("../controllers/userController");
+const { registerUser, loginUser, updateUserBalance, getAllUsers, getUserById, addTrialBonus, cancelTrialBonus } = require("../controllers/userController");
 const { getRandomHotel } = require("../controllers/hotelController");
 const { startOrder, submitOrder, getUserOrderCount, getTodayProfit, getTodayOrderCount } = require("../controllers/orderController");
+const { getCommercialAssignmentForUser } = require("../controllers/orderController");
 
 router.post('/register', registerUser);
 router.post('/login', loginUser);
