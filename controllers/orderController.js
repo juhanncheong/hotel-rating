@@ -128,9 +128,11 @@ exports.startOrder = async (req, res) => {
      price: { $gte: minPrice, $lte: maxPrice }
    });
 
+   // ✅ fallback to hotels user can actually afford
    if (hotels.length === 0) {
-     // fallback to ANY hotel
-     hotels = await Hotel.find();
+     hotels = await Hotel.find({
+      price: { $lte: balance }
+    });
    }
 
    if (hotels.length === 0) {
