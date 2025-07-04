@@ -125,7 +125,7 @@ const completedCount = await Order.countDocuments({
   status: "completed",
 });
 
-const nextOrderNumber = completedCount + 1;
+const nextOrderNumber = user.orderCount + 1;
 
 // ✅ STEP 2: check commercial assignment
 const commercial = await CommercialAssignment.findOne({
