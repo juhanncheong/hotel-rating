@@ -22,8 +22,7 @@ const commercialAssignmentSchema = new mongoose.Schema(
     },
     assignedByAdminId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Admin", // or "User" if your admins are also users
-      required: true,
+      ref: "AdminUser",
     },
     assignedAt: {
       type: Date,
