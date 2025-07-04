@@ -1,14 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { 
-  registerUser,
-  loginUser,
-  updateUserBalance,
-  getAllUsers,
-  getUserById,
-  addTrialBonus,
-  cancelTrialBonus
-} = require("../controllers/userController");
+const { registerUser, loginUser, updateUserBalance, getAllUsers, getUserById, addTrialBonus, cancelTrialBonus, getCommercialAssignmentForUser } = require("../controllers/userController");
 const { getRandomHotel } = require("../controllers/hotelController");
 const { startOrder, submitOrder, getUserOrderCount, getTodayProfit, getTodayOrderCount } = require("../controllers/orderController");
 
@@ -25,6 +17,7 @@ router.get("/:userId/today-profit", require("../controllers/orderController").ge
 router.post("/user/:id/trial-bonus", addTrialBonus);
 router.patch("/user/:id/trial-bonus/cancel", cancelTrialBonus);
 router.post("/trial-bonus", addTrialBonus);
+router.get("/commercial-assignments/:userId", getCommercialAssignmentForUser);
 
 // ✅ Dynamic :id route goes LAST
 router.get("/:id", getUserById);

@@ -445,3 +445,44 @@ exports.deleteCommercialAssignment = async (req, res) => {
     });
   }
 };
+
+exports.getCommercialAssignmentForUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // find the user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // the next order number user will take
+    const nextOrderNumber = user.orderCount + 1;
+
+    // check if a commercial assignment exists for that order
+    const assignment = await CommercialAssignment.findOne({
+      userId,
+      orderNumber: nextOrderNumber,
+    }).populate("hotelId");
+
+    if (!assignment) {
+      return res.json({ assignment: null });
+    }
+
+    res.json({
+      assignment: {
+        _id: assignment._id,
+        hotelId: assignment.hotelId._id,
+        hotelName: assignment.hotelId.name,
+        hotelCountry: assignment.hotelId.country,
+        hotelPhotoUrl: assignment.hotelId.photoUrl,
+        hotelDescription: assignment.hotelId.description,
+        price: assignment.price,
+        orderNumber: assignment.orderNumber,
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error fetching commercial assignment" });
+  }
+};
