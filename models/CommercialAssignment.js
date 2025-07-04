@@ -1,10 +1,14 @@
 const mongoose = require("mongoose");
 
-const orderSchema = new mongoose.Schema(
+const commercialAssignmentSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      required: true,
+    },
+    orderNumber: {
+      type: Number,
       required: true,
     },
     hotelId: {
@@ -16,21 +20,12 @@ const orderSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
-    commission: {
-      type: Number,
+    assignedByAdminId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin", // or "User" if your admins are also users
       required: true,
     },
-    status: {
-      type: String,
-      enum: ["pending", "completed"],
-      default: "pending",
-    },
-    assignmentType: {
-      type: String,
-      enum: ["normal", "commercial"],
-      default: "normal",
-    },
-    createdAt: {
+    assignedAt: {
       type: Date,
       default: Date.now,
     },
@@ -38,4 +33,7 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Order", orderSchema);
+module.exports = mongoose.model(
+  "CommercialAssignment",
+  commercialAssignmentSchema
+);

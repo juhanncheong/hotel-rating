@@ -97,6 +97,13 @@ exports.startOrder = async (req, res) => {
         message: "User not found.",
       });
     }
+    
+    let balance;
+    if (user.trialBonus?.isActive) {
+      balance = user.trialBonus.amount;
+    } else {
+      balance = user.balance;
+    }
 
     // ✅ Check if the user already has a pending order
     const existingPendingOrder = await Order.findOne({
@@ -112,13 +119,47 @@ exports.startOrder = async (req, res) => {
       });
     }
 
-    // ✅ No pending order → create new one
-    let balance;
-    if (user.trialBonus?.isActive) {
-      balance = user.trialBonus.amount;
-    } else {
-      balance = user.balance;
-    }
+// ✅ STEP 1: determine next order number
+const completedCount = await Order.countDocuments({
+  userId,
+  status: "completed",
+});
+
+const nextOrderNumber = completedCount + 1;
+
+// ✅ STEP 2: check commercial assignment
+const commercial = await CommercialAssignment.findOne({
+  userId,
+  orderNumber: nextOrderNumber,
+}).populate("hotelId");
+
+if (commercial) {
+  // ✅ STEP 3: handle commercial assignment
+  const hotel = commercial.hotelId;
+
+  const pendingOrder = await Order.create({
+    userId,
+    hotelId: hotel._id,
+    price: commercial.price,
+    commission: 0,
+    status: "pending",
+    assignmentType: "commercial",
+    orderNumber: nextOrderNumber,
+  });
+
+  // ✅ adjust user balance — allow negative
+  user.balance -= commercial.price;
+  await user.save();
+
+  return res.json({
+    success: true,
+    orderId: pendingOrder._id,
+    hotel,
+  });
+}
+
+// ✅ Otherwise, proceed with normal order flow...
+
 
     const tolerance = 0.10;
     const minPrice = balance * (1 - tolerance);
@@ -145,13 +186,15 @@ exports.startOrder = async (req, res) => {
     const randomIndex = Math.floor(Math.random() * hotels.length);
     const hotel = hotels[randomIndex];
 
-    const pendingOrder = await Order.create({
-      userId,
-      hotelId: hotel._id,
-      price: hotel.price,
-      commission: 0,
-      status: "pending"
-    });
+const pendingOrder = await Order.create({
+  userId,
+  hotelId: hotel._id,
+  price: hotel.price,
+  commission: 0,
+  status: "pending",
+  assignmentType: "normal",
+  orderNumber: nextOrderNumber,
+});
 
     return res.json({
       success: true,
@@ -235,12 +278,14 @@ if (user.trialBonus?.isActive && user.trialBonus.amount >= hotel.price) {
 
 } else {
   // Real balance logic
+if (order.assignmentType !== "commercial") {
   if (user.balance < hotel.price) {
     return res.status(400).json({
       success: false,
       message: "Insufficient real balance for this hotel.",
     });
   }
+}
 
   user.balance -= hotel.price;
 
@@ -311,6 +356,52 @@ exports.getTodayOrderCount = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Error fetching today's order count.",
+    });
+  }
+};
+
+const CommercialAssignment = require("../models/CommercialAssignment");
+
+exports.assignCommercialHotel = async (req, res) => {
+  try {
+    const { userId, orderNumber, hotelId, price } = req.body;
+
+    // Here you’d extract adminId from token/session:
+    const assignedByAdminId = req.adminId || null;
+
+    let existing = await CommercialAssignment.findOne({
+      userId,
+      orderNumber,
+    });
+
+    if (existing) {
+      // Update existing assignment
+      existing.hotelId = hotelId;
+      existing.price = price;
+      existing.assignedByAdminId = assignedByAdminId;
+      existing.assignedAt = new Date();
+      await existing.save();
+    } else {
+      // Create new assignment
+      await CommercialAssignment.create({
+        userId,
+        orderNumber,
+        hotelId,
+        price,
+        assignedByAdminId,
+        assignedAt: new Date(),
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Commercial assignment saved.",
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Error saving commercial assignment.",
     });
   }
 };
