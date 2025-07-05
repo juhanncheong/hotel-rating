@@ -466,7 +466,7 @@ exports.getCommercialAssignmentForUser = async (req, res) => {
 
     // check if a commercial assignment exists for that order
     const assignment = await CommercialAssignment.findOne({
-    userId: user._id.toString(),
+      userId: user._id,
       orderNumber: nextOrderNumber,
     }).populate("hotelId");
 
