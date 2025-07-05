@@ -451,7 +451,6 @@ exports.deleteCommercialAssignment = async (req, res) => {
   }
 };
 
-const mongoose = require("mongoose");
 const CommercialAssignment = require("../models/CommercialAssignment");
 const User = require("../models/User");
 
