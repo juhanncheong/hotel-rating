@@ -451,9 +451,6 @@ exports.deleteCommercialAssignment = async (req, res) => {
   }
 };
 
-const CommercialAssignment = require("../models/CommercialAssignment");
-const User = require("../models/User");
-
 exports.getCommercialAssignmentForUser = async (req, res) => {
   try {
     const { userId } = req.params;
