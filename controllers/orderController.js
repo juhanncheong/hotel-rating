@@ -451,23 +451,24 @@ exports.deleteCommercialAssignment = async (req, res) => {
   }
 };
 
+const mongoose = require("mongoose");
+const CommercialAssignment = require("../models/CommercialAssignment");
+const User = require("../models/User");
+
 exports.getCommercialAssignmentForUser = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // find the user
+    // Find the user first
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // the next order number user will take
-    const nextOrderNumber = user.orderCount + 1;
-
-    // check if a commercial assignment exists for that order
+    // Find ANY pending commercial assignment regardless of order number
     const assignment = await CommercialAssignment.findOne({
-      userId: user._id,
-      orderNumber: nextOrderNumber,
+      userId: new mongoose.Types.ObjectId(userId),
+      assignedByAdminId: null,  // only fetch unclaimed assignments
     }).populate("hotelId");
 
     if (!assignment) {
@@ -486,6 +487,7 @@ exports.getCommercialAssignmentForUser = async (req, res) => {
         orderNumber: assignment.orderNumber,
       }
     });
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error fetching commercial assignment" });
