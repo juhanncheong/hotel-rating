@@ -2,6 +2,7 @@ const Order = require("../models/Order");
 const Hotel = require("../models/Hotel");
 const Settings = require("../models/Settings");
 const User = require("../models/User");
+const mongoose = require("mongoose");
 
 exports.getUserOrderCount = async (req, res) => {
   try {
