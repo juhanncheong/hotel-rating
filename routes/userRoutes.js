@@ -19,6 +19,7 @@ router.post("/user/:id/trial-bonus", addTrialBonus);
 router.patch("/user/:id/trial-bonus/cancel", cancelTrialBonus);
 router.post("/trial-bonus", addTrialBonus);
 router.get("/commercial-assignments/:userId", getCommercialAssignmentForUser);
+router.post("/submit-commercial-assignment", submitCommercialAssignment);
 
 // ✅ Dynamic :id route goes LAST
 router.get("/:id", getUserById);

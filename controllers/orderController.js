@@ -490,3 +490,56 @@ exports.getCommercialAssignmentForUser = async (req, res) => {
     res.status(500).json({ message: "Error fetching commercial assignment" });
   }
 };
+
+exports.submitCommercialAssignment = async (req, res) => {
+  try {
+    const { userId, assignmentId } = req.body;
+
+    // find the commercial assignment
+    const assignment = await CommercialAssignment.findById(assignmentId);
+    if (!assignment) {
+      return res.status(404).json({ message: "Commercial assignment not found" });
+    }
+
+    // Check user's balance
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.balance < assignment.price) {
+      return res.status(400).json({
+        message: "Insufficient balance. Please recharge to proceed.",
+      });
+    }
+
+    // Create new Order
+    const order = new Order({
+      userId: user._id,
+      hotelId: assignment.hotelId,
+      price: assignment.price,
+      commission: assignment.price * 0.005,
+      status: "completed",
+      orderType: "commercial",
+    });
+
+    await order.save();
+
+    // Deduct user balance
+    user.balance -= assignment.price;
+    user.orderCount += 1;
+    await user.save();
+
+    // Optionally mark assignment as done
+    assignment.assignedByAdminId = "completed";
+    await assignment.save();
+
+    return res.json({
+      success: true,
+      orderId: order._id,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error submitting commercial assignment" });
+  }
+};
