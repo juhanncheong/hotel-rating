@@ -543,3 +543,53 @@ exports.submitCommercialAssignment = async (req, res) => {
     res.status(500).json({ message: "Error submitting commercial assignment" });
   }
 };
+
+exports.getUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    // compute next order number
+    const nextOrderNumber = user.orderCount + 1;
+
+    // check commercial assignment for next order
+    const assignment = await CommercialAssignment.findOne({
+      userId: user._id,
+      orderNumber: nextOrderNumber,
+    });
+
+    let pendingAmount = 0;
+
+    if (assignment) {
+      const setting = await Settings.findOne({ key: "commissionRate" });
+      const commissionRate = setting ? setting.value : 0;
+      const commission = (assignment.price * commissionRate) / 100;
+      pendingAmount = assignment.price + commission;
+    }
+
+    return res.json({
+      success: true,
+      user: {
+        id: user._id,
+        phone: user.phone,
+        balance: user.balance,
+        orderCount: user.orderCount,
+        pendingAmount,
+      }
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching user info.",
+    });
+  }
+};

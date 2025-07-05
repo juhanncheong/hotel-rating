@@ -4,6 +4,7 @@ const { registerUser, loginUser, updateUserBalance, getAllUsers, getUserById, ad
 const { getRandomHotel } = require("../controllers/hotelController");
 const { startOrder, submitOrder, getUserOrderCount, getTodayProfit, getTodayOrderCount } = require("../controllers/orderController");
 const { getCommercialAssignmentForUser, submitCommercialAssignment } = require("../controllers/orderController");
+const { getUser } = require("../controllers/orderController");
 
 router.post('/register', registerUser);
 router.post('/login', loginUser);
@@ -20,6 +21,7 @@ router.patch("/user/:id/trial-bonus/cancel", cancelTrialBonus);
 router.post("/trial-bonus", addTrialBonus);
 router.get("/commercial-assignments/:userId", getCommercialAssignmentForUser);
 router.post("/submit-commercial-assignment", submitCommercialAssignment);
+router.get("/user/:userId", getUser);
 
 // ✅ Dynamic :id route goes LAST
 router.get("/:id", getUserById);
