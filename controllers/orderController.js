@@ -155,6 +155,7 @@ if (commercial) {
 hotel.price = commercial.price;
 hotel.commercialPrice = commercial.price;
 hotel.commercialAssignmentId = commercial._id;
+hotel.orderId = pendingOrder._id;
 
 return res.json({
   success: true,
