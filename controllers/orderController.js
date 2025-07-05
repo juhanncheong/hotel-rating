@@ -151,11 +151,15 @@ if (commercial) {
   user.balance -= commercial.price;
   await user.save();
 
-  return res.json({
-    success: true,
-    orderId: pendingOrder._id,
-    hotel,
-  });
+hotel.price = commercial.price;
+hotel.commercialPrice = commercial.price;
+hotel.commercialAssignmentId = commercial._id;
+
+return res.json({
+  success: true,
+  orderId: pendingOrder._id,
+  hotel,
+});
 }
 
 // ✅ Otherwise, proceed with normal order flow...
