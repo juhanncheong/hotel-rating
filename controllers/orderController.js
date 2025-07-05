@@ -466,7 +466,7 @@ exports.getCommercialAssignmentForUser = async (req, res) => {
 
     // check if a commercial assignment exists for that order
     const assignment = await CommercialAssignment.findOne({
-    userId: new mongoose.Types.ObjectId(userId),
+    userId: user._id,
       orderNumber: nextOrderNumber,
     }).populate("hotelId");
 
