@@ -91,15 +91,22 @@ exports.startOrder = async (req, res) => {
   try {
     const { userId } = req.body;
 
-    const user = await User.findById(userId);
+const user = await User.findById(userId);
 
-    // Check how many orders the user already has
-const userOrderCount = await Order.countDocuments({ userId });
+let dateFilter = {};
+if (user.resetAt) {
+  dateFilter = { createdAt: { $gte: user.resetAt } };
+}
+
+const userOrderCount = await Order.countDocuments({
+  userId,
+  ...dateFilter,
+});
 
 if (userOrderCount >= 30) {
   return res.status(403).json({
     success: false,
-    message: "You have reached your maximum number of orders for today. Please upgrade your account."
+    message: "You have reached your maximum number of orders for today. Please upgrade your account.",
   });
 }
     if (!user) {
