@@ -105,7 +105,13 @@ exports.startOrder = async (req, res) => {
     } else {
       balance = user.balance;
     }
-
+   
+    if (balance <= 0) {
+  return res.status(400).json({
+    success: false,
+    message: "Insufficient balance to start an order. Please recharge.",
+  });
+}
     // ✅ Check if the user already has a pending order
     const existingPendingOrder = await Order.findOne({
       userId,
