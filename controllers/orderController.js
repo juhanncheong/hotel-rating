@@ -491,53 +491,47 @@ exports.submitCommercialAssignment = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (user.balance < 0) {
-      return res.status(400).json({
-        message: "Congratulations, you got a commercial order.",
+    // Find the pending commercial order
+    const pendingOrder = await Order.findOne({
+      userId,
+      hotelId: assignment.hotelId,
+      assignmentType: "commercial",
+      status: "pending",
+    });
+
+    if (!pendingOrder) {
+      return res.status(404).json({
+        message: "No pending commercial order found for this user.",
       });
     }
 
-    // Fetch commission rate
-    const setting = await Settings.findOne({ key: "commissionRate" });
-    const commissionRate = setting ? setting.value : 0;
-    const commission = (assignment.price * commissionRate) / 100;
+    // Refund pending amount
+    user.balance += pendingOrder.pendingAmount;
 
-    const pendingAmount = assignment.price + commission;
+    user.orderCount += 1;
 
-    const order = new Order({
-      userId: user._id,
-      hotelId: assignment.hotelId,
-      price: assignment.price,
-      commission,
-      pendingAmount,
-      status: "completed",
-      assignmentType: "commercial",
-    });
+    if (user.trialBonus?.isActive && user.orderCount >= 30) {
+      user.trialBonus.isActive = false;
+      user.trialBonus.status = "completed";
+      user.trialBonus.amount = 0;
+    }
 
-    await order.save();
+    pendingOrder.status = "completed";
+    pendingOrder.pendingAmount = 0;
+    await pendingOrder.save();
+    await user.save();
 
-user.balance += pendingAmount;
-user.pending = 0;
-
-user.orderCount += 1;
-
-if (user.trialBonus?.isActive && user.orderCount >= 30) {
-  user.trialBonus.isActive = false;
-  user.trialBonus.status = "completed";
-  user.trialBonus.amount = 0;
-}
-
-await user.save();
-
+    // Mark commercial assignment as completed
     assignment.assignedByAdminId = "completed";
     assignment.pendingAmount = 0;
     await assignment.save();
 
     return res.json({
       success: true,
-      orderId: order._id,
+      message: "Commercial order completed successfully.",
+      orderId: pendingOrder._id,
     });
-    
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error submitting commercial assignment" });
