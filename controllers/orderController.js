@@ -492,12 +492,7 @@ exports.submitCommercialAssignment = async (req, res) => {
     }
 
     // Find the pending commercial order
-    const pendingOrder = await Order.findOne({
-      userId,
-      hotelId: assignment.hotelId,
-      assignmentType: "commercial",
-      status: "pending",
-    });
+   const pendingOrder = await Order.findById(orderId);
 
     if (!pendingOrder) {
       return res.status(404).json({
