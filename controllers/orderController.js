@@ -112,13 +112,14 @@ exports.startOrder = async (req, res) => {
       status: "pending"
     }).populate("hotelId");
 
-    if (existingPendingOrder) {
-      return res.json({
-        success: true,
-        hotel: existingPendingOrder.hotelId,
-        orderId: existingPendingOrder._id,
-      });
-    }
+if (existingPendingOrder) {
+  return res.json({
+    success: true,
+    hotel: existingPendingOrder.hotelId,
+    orderId: existingPendingOrder._id,
+    pendingAmount: existingPendingOrder.pendingAmount,
+  });
+}
 
 // ✅ STEP 1: determine next order number
 const completedCount = await Order.countDocuments({
@@ -138,19 +139,27 @@ if (commercial) {
   // ✅ STEP 3: handle commercial assignment
   const hotel = commercial.hotelId;
 
-  const pendingOrder = await Order.create({
-    userId,
-    hotelId: hotel._id,
-    price: commercial.price,
-    commission: 0,
-    status: "pending",
-    assignmentType: "commercial",
-    orderNumber: nextOrderNumber,
-  });
+// Calculate commission
+const setting = await Settings.findOne({ key: "commissionRate" });
+const commissionRate = setting ? setting.value : 0;
+const commission = (commercial.price * commissionRate) / 100;
 
-  // ✅ adjust user balance — allow negative
-  user.balance -= commercial.price;
-  await user.save();
+const pendingAmount = commercial.price + commission;
+
+// Deduct commercial price (balance can become negative)
+user.balance -= commercial.price;
+await user.save();
+
+const pendingOrder = await Order.create({
+  userId,
+  hotelId: hotel._id,
+  price: commercial.price,
+  commission,
+  pendingAmount,
+  status: "pending",
+  assignmentType: "commercial",
+  orderNumber: nextOrderNumber,
+});
 
 hotel.price = commercial.price;
 hotel.commercialPrice = commercial.price;
@@ -161,19 +170,17 @@ return res.json({
   success: true,
   orderId: pendingOrder._id,
   hotel,
+  pendingAmount,
 });
 }
 
 // ✅ Otherwise, proceed with normal order flow...
+const minPrice = balance * 0.8;
+const maxPrice = balance;
 
-
-    const tolerance = 0.10;
-    const minPrice = balance * (1 - tolerance);
-    const maxPrice = balance;
-
-    let hotels = await Hotel.find({
-     price: { $gte: minPrice, $lte: maxPrice }
-   });
+let hotels = await Hotel.find({
+  price: { $gte: minPrice, $lte: maxPrice }
+});
 
    // ✅ fallback to hotels user can actually afford
    if (hotels.length === 0) {
@@ -192,21 +199,35 @@ return res.json({
     const randomIndex = Math.floor(Math.random() * hotels.length);
     const hotel = hotels[randomIndex];
 
+    // Fetch commission rate
+const setting = await Settings.findOne({ key: "commissionRate" });
+const commissionRate = setting ? setting.value : 0;
+const commission = (hotel.price * commissionRate) / 100;
+
+// Calculate pending amount
+const pendingAmount = hotel.price + commission;
+
+// Deduct hotel price from user balance
+user.balance -= hotel.price;
+await user.save();
+
 const pendingOrder = await Order.create({
   userId,
   hotelId: hotel._id,
   price: hotel.price,
-  commission: 0,
+  commission,
+  pendingAmount,
   status: "pending",
   assignmentType: "normal",
   orderNumber: nextOrderNumber,
 });
 
-    return res.json({
-      success: true,
-      orderId: pendingOrder._id,
-      hotel
-    });
+return res.json({
+  success: true,
+  orderId: pendingOrder._id,
+  hotel,
+  pendingAmount
+});
 
   } catch (error) {
     console.error(error);
@@ -222,104 +243,59 @@ exports.submitOrder = async (req, res) => {
   try {
     const { userId, orderId } = req.body;
 
-    // We’ll add full logic next.
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
 
-const user = await User.findById(userId);
-if (!user) {
-  return res.status(404).json({
-    success: false,
-    message: "User not found.",
-  });
-}
+    const order = await Order.findById(orderId).populate("hotelId");
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found.",
+      });
+    }
 
-const order = await Order.findById(orderId).populate("hotelId");
-if (!order) {
-  return res.status(404).json({
-    success: false,
-    message: "Order not found.",
-  });
-}
+    if (order.status === "completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Order has already been completed.",
+      });
+    }
 
-if (order.status === "completed") {
-  return res.status(400).json({
-    success: false,
-    message: "Order has already been completed.",
-  });
-}
+    if (user.balance < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Congratulations, you got a commercial order.",
+      });
+    }
 
-const hotel = order.hotelId;
+    // Refund pending amount
+    user.balance += order.pendingAmount;
 
-// Check affordability
-if (user.trialBonus?.isActive && user.trialBonus.amount >= hotel.price) {
-  // Trial balance logic
-  user.trialBonus.amount -= hotel.price;
+    // Increment order count
+    user.orderCount += 1;
 
-  // Get commission rate
-  const setting = await Settings.findOne({ key: "commissionRate" });
-  const commissionRate = setting ? setting.value : 0;
-  const commission = (hotel.price * commissionRate) / 100;
+    // Disable trial bonus if reached 30 orders
+    if (user.trialBonus?.isActive && user.orderCount >= 30) {
+      user.trialBonus.isActive = false;
+      user.trialBonus.status = "completed";
+      user.trialBonus.amount = 0;
+    }
 
-  user.balance += commission;
+    order.status = "completed";
+    await user.save();
+    await order.save();
 
-  user.trialBonus.amount += hotel.price;
-
-  user.orderCount += 1;
-
-  if (user.orderCount >= 30) {
-    user.trialBonus.isActive = false;
-    user.trialBonus.status = "completed";
-    user.trialBonus.amount = 0;
-  }
-
-  order.commission = commission;
-  order.status = "completed";
-  await user.save();
-  await order.save();
-
-  return res.json({
-    success: true,
-    order,
-    hotel
-  });
-
-} else {
-  // Real balance logic
-if (order.assignmentType !== "commercial") {
-  if (user.balance < hotel.price) {
-    return res.status(400).json({
-      success: false,
-      message: "Insufficient real balance for this hotel.",
+    return res.json({
+      success: true,
+      message: "Order completed successfully!",
+      order,
+      hotel: order.hotelId,
     });
-  }
-}
-
-  user.balance -= hotel.price;
-
-  const setting = await Settings.findOne({ key: "commissionRate" });
-  const commissionRate = setting ? setting.value : 0;
-  const commission = (hotel.price * commissionRate) / 100;
-
-  user.balance += hotel.price + commission;
-
-  user.orderCount += 1;
-
-  if (user.trialBonus.isActive && user.orderCount >= 30) {
-    user.trialBonus.isActive = false;
-    user.trialBonus.status = "completed";
-    user.trialBonus.amount = 0;
-  }
-
-  order.commission = commission;
-  order.status = "completed";
-  await user.save();
-  await order.save();
-
-  return res.json({
-    success: true,
-    order,
-    hotel
-  });
-}
 
   } catch (error) {
     console.error(error);
@@ -495,42 +471,52 @@ exports.submitCommercialAssignment = async (req, res) => {
   try {
     const { userId, assignmentId } = req.body;
 
-    // find the commercial assignment
     const assignment = await CommercialAssignment.findById(assignmentId);
     if (!assignment) {
       return res.status(404).json({ message: "Commercial assignment not found" });
     }
 
-    // Check user's balance
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (user.balance < assignment.price) {
+    if (user.balance < 0) {
       return res.status(400).json({
-        message: "Insufficient balance. Please recharge to proceed.",
+        message: "Congratulations, you got a commercial order.",
       });
     }
 
-    // Create new Order
+    // Fetch commission rate
+    const setting = await Settings.findOne({ key: "commissionRate" });
+    const commissionRate = setting ? setting.value : 0;
+    const commission = (assignment.price * commissionRate) / 100;
+
+    const pendingAmount = assignment.price + commission;
+
     const order = new Order({
       userId: user._id,
       hotelId: assignment.hotelId,
       price: assignment.price,
-      commission: assignment.price * 0.005,
+      commission,
+      pendingAmount,
       status: "completed",
-      orderType: "commercial",
+      assignmentType: "commercial",
     });
 
     await order.save();
 
-    // Deduct user balance
     user.balance -= assignment.price;
     user.orderCount += 1;
+
+    if (user.trialBonus?.isActive && user.orderCount >= 30) {
+      user.trialBonus.isActive = false;
+      user.trialBonus.status = "completed";
+      user.trialBonus.amount = 0;
+    }
+
     await user.save();
 
-    // Optionally mark assignment as done
     assignment.assignedByAdminId = "completed";
     await assignment.save();
 
