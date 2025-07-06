@@ -272,12 +272,12 @@ exports.submitOrder = async (req, res) => {
       });
     }
 
-    if (user.balance < 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Congratulations, you got a commercial order.",
-      });
-    }
+if (user.balance + order.pendingAmount < 0) {
+  return res.status(400).json({
+    success: false,
+    message: "Insufficient funds. Please recharge before completing this order.",
+  });
+}
 
     // Refund pending amount
     user.balance += order.pendingAmount;
