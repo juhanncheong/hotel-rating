@@ -93,14 +93,11 @@ exports.startOrder = async (req, res) => {
 
 const user = await User.findById(userId);
 
-let dateFilter = {};
-if (user.resetAt) {
-  dateFilter = { createdAt: { $gte: user.resetAt } };
-}
+const resetDate = user.orderResetAt || new Date(0);
 
 const userOrderCount = await Order.countDocuments({
   userId,
-  ...dateFilter,
+  createdAt: { $gte: resetDate },
 });
 
 if (userOrderCount >= 30) {
@@ -496,31 +493,33 @@ exports.getCommercialAssignmentForUser = async (req, res) => {
 
 exports.submitCommercialAssignment = async (req, res) => {
   try {
-    const { userId, assignmentId } = req.body;
-
-    // Check how many orders the user already has
-const userOrderCount = await Order.countDocuments({ userId });
-
-if (userOrderCount >= 30) {
-  return res.status(403).json({
-    success: false,
-    message: "You have reached your maximum number of orders for today. Please upgrade your account."
-  });
-}
-
-    const assignment = await CommercialAssignment.findById(assignmentId);
-    if (!assignment) {
-      return res.status(404).json({ message: "Commercial assignment not found" });
-    }
+    const { userId, assignmentId, orderId } = req.body;
 
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Find the pending commercial order
-   const pendingOrder = await Order.findById(orderId);
+    const resetDate = user.orderResetAt || new Date(0);
 
+    const userOrderCount = await Order.countDocuments({
+      userId,
+      createdAt: { $gte: resetDate },
+    });
+
+    if (userOrderCount >= 30) {
+      return res.status(403).json({
+        success: false,
+        message: "You have reached your maximum number of orders for today. Please upgrade your account.",
+      });
+    }
+
+    const assignment = await CommercialAssignment.findById(assignmentId);
+    if (!assignment) {
+      return res.status(404).json({ message: "Commercial assignment not found" });
+    }
+
+    const pendingOrder = await Order.findById(orderId);
     if (!pendingOrder) {
       return res.status(404).json({
         message: "No pending commercial order found for this user.",
@@ -543,7 +542,6 @@ if (userOrderCount >= 30) {
     await pendingOrder.save();
     await user.save();
 
-    // Mark commercial assignment as completed
     assignment.status = "completed";
     assignment.pendingAmount = 0;
     await assignment.save();

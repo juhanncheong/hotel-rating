@@ -226,6 +226,7 @@ exports.resetUserOrders = async (req, res) => {
     }
 
     user.orderCount = 0;
+    user.orderResetAt = new Date();
     await user.save();
 
     res.json({ success: true, message: "User order count has been reset." });
