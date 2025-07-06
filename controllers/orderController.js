@@ -516,24 +516,28 @@ exports.submitCommercialAssignment = async (req, res) => {
 
     await order.save();
 
-    user.balance -= assignment.price;
-    user.orderCount += 1;
+user.balance += pendingAmount;
+user.pending = 0;
 
-    if (user.trialBonus?.isActive && user.orderCount >= 30) {
-      user.trialBonus.isActive = false;
-      user.trialBonus.status = "completed";
-      user.trialBonus.amount = 0;
-    }
+user.orderCount += 1;
 
-    await user.save();
+if (user.trialBonus?.isActive && user.orderCount >= 30) {
+  user.trialBonus.isActive = false;
+  user.trialBonus.status = "completed";
+  user.trialBonus.amount = 0;
+}
+
+await user.save();
 
     assignment.assignedByAdminId = "completed";
+    assignment.pendingAmount = 0;
     await assignment.save();
 
     return res.json({
       success: true,
       orderId: order._id,
     });
+    
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error submitting commercial assignment" });
