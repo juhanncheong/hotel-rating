@@ -292,8 +292,11 @@ if (user.balance + order.pendingAmount < 0) {
       user.trialBonus.amount = 0;
     }
 
-order.status = "completed";
 user.balance += order.pendingAmount;
+order.pendingAmount = 0;
+user.pending = 0;
+
+order.status = "completed";
 await order.save();
 await user.save();
 
