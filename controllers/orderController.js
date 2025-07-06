@@ -507,7 +507,7 @@ exports.submitCommercialAssignment = async (req, res) => {
 
     // Refund pending amount
     user.balance += pendingOrder.pendingAmount;
-
+    user.pending = 0;
     user.orderCount += 1;
 
     if (user.trialBonus?.isActive && user.orderCount >= 30) {
@@ -522,7 +522,7 @@ exports.submitCommercialAssignment = async (req, res) => {
     await user.save();
 
     // Mark commercial assignment as completed
-    assignment.assignedByAdminId = "completed";
+    assignment.status = "completed";
     assignment.pendingAmount = 0;
     await assignment.save();
 
@@ -557,6 +557,7 @@ exports.getUser = async (req, res) => {
     const assignment = await CommercialAssignment.findOne({
       userId: user._id,
       orderNumber: nextOrderNumber,
+      status: "pending",
     });
 
     let pendingAmount = 0;
