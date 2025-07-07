@@ -198,23 +198,33 @@ return res.json({
 const minPrice = balance * 0.8;
 const maxPrice = balance;
 
+// find last 3 hotels user completed
+const lastOrders = await Order.find({
+  userId,
+  status: "completed"
+})
+.sort({ createdAt: -1 })
+.limit(3);
+
+const recentlyUsedHotelIds = lastOrders.map(order => String(order.hotelId));
+
 let hotels = await Hotel.find({
+  _id: { $nin: recentlyUsedHotelIds },
   price: { $gte: minPrice, $lte: maxPrice }
 });
 
-   // ✅ fallback to hotels user can actually afford
-   if (hotels.length === 0) {
-     hotels = await Hotel.find({
-      price: { $lte: balance }
-    });
-   }
+if (hotels.length === 0) {
+  hotels = await Hotel.find({
+    _id: { $nin: recentlyUsedHotelIds },
+    price: { $lte: balance }
+  });
+}
 
-   if (hotels.length === 0) {
-     return res.status(404).json({
-       success: false,
-       message: "No hotels available.",
-     });
-   }
+if (hotels.length === 0) {
+  hotels = await Hotel.find({
+    price: { $lte: balance }
+  });
+}
 
     const randomIndex = Math.floor(Math.random() * hotels.length);
     const hotel = hotels[randomIndex];
