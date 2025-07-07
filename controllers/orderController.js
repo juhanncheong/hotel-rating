@@ -99,12 +99,12 @@ if (orderNumber) {
     status: "pending",
   }).populate("hotelId");
 
-      if (!commercial || commercial.status !== "pending") {
-        return res.status(404).json({
-          success: false,
-          message: "No pending commercial assignment found for this user."
-        });
-      }
+if (!commercial || commercial.status !== "pending") {
+  // No commercial assignment, proceed to normal order logic below
+} else {
+  // Proceed with commercial logic
+  // (keep your existing commercial code here)
+}
 
       // Find the pending commercial order
       const pendingOrder = await Order.findOne({
