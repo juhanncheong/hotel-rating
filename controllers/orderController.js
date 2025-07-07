@@ -89,11 +89,15 @@ exports.getTodayProfit = async (req, res) => {
 
 exports.startOrder = async (req, res) => {
   try {
-    const { userId, commercialAssignmentId } = req.body;
+const { userId, commercialAssignmentId, orderNumber } = req.body;
 
     // ✅ FIRST: check if user has a pending commercial assignment
-    if (commercialAssignmentId) {
-      const commercial = await CommercialAssignment.findById(commercialAssignmentId).populate("hotelId");
+if (commercialAssignmentId && orderNumber) {
+  const commercial = await CommercialAssignment.findOne({
+    _id: commercialAssignmentId,
+    orderNumber,
+    status: "pending",
+  }).populate("hotelId");
 
       if (!commercial || commercial.status !== "pending") {
         return res.status(404).json({
