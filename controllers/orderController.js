@@ -258,7 +258,6 @@ return res.json({
   }
 };
 
-
 exports.submitOrder = async (req, res) => {
   try {
     const { userId, orderId } = req.body;
@@ -286,14 +285,15 @@ exports.submitOrder = async (req, res) => {
       });
     }
 
-if (user.balance + order.pendingAmount < 0) {
-  return res.status(400).json({
-    success: false,
-    message: "Insufficient funds. Please recharge before completing this order.",
-  });
-}
+    // Check if user has sufficient funds to unlock the pending order
+    if (user.balance + order.pendingAmount < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Insufficient funds. Please recharge before completing this order.",
+      });
+    }
 
-    // Refund pending amount
+    // ✅ Refund pendingAmount ONCE (price + commission)
     user.balance += order.pendingAmount;
 
     // Increment order count
@@ -306,13 +306,14 @@ if (user.balance + order.pendingAmount < 0) {
       user.trialBonus.amount = 0;
     }
 
-user.balance += order.pendingAmount;
-order.pendingAmount = 0;
-user.pending = 0;
+    // Clear pending
+    order.pendingAmount = 0;
+    user.pending = 0;
 
-order.status = "completed";
-await order.save();
-await user.save();
+    order.status = "completed";
+
+    await order.save();
+    await user.save();
 
     return res.json({
       success: true,
@@ -526,25 +527,33 @@ exports.submitCommercialAssignment = async (req, res) => {
       });
     }
 
-    // Refund pending amount
+    // ✅ Refund pending amount ONCE (hotel price + commission)
     user.balance += pendingOrder.pendingAmount;
-    user.pending = 0;
+
+    // Increment order count
     user.orderCount += 1;
 
+    // Clear user's pending status
+    user.pending = 0;
+
+    // Disable trial bonus if reached 30 orders
     if (user.trialBonus?.isActive && user.orderCount >= 30) {
       user.trialBonus.isActive = false;
       user.trialBonus.status = "completed";
       user.trialBonus.amount = 0;
     }
 
+    // Update order
     pendingOrder.status = "completed";
     pendingOrder.pendingAmount = 0;
     await pendingOrder.save();
-    await user.save();
 
+    // Update commercial assignment
     assignment.status = "completed";
     assignment.pendingAmount = 0;
     await assignment.save();
+
+    await user.save();
 
     return res.json({
       success: true,
