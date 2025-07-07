@@ -286,7 +286,7 @@ exports.startOrder = async (req, res) => {
       message: "Error starting order.",
     });
   }
-};
+};  
 
 exports.submitOrder = async (req, res) => {
   try {
@@ -557,7 +557,15 @@ exports.submitCommercialAssignment = async (req, res) => {
       });
     }
 
-    // ✅ Refund pending amount ONCE (hotel price + commission)
+    // ✅ NEW: Check if user's balance is negative
+    if (user.balance < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Congratulations, you received a commercial assignment! Please recharge before submitting this order.",
+      });
+    }
+
+    // ✅ Refund pendingAmount ONCE (hotel price + commission)
     user.balance += pendingOrder.pendingAmount;
 
     // Increment order count
