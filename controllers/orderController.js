@@ -89,83 +89,79 @@ exports.getTodayProfit = async (req, res) => {
 
 exports.startOrder = async (req, res) => {
   try {
-const { userId, commercialAssignmentId, orderNumber } = req.body;
+    const { userId, commercialAssignmentId, orderNumber } = req.body;
 
     // ✅ FIRST: check if user has a pending commercial assignment
-if (orderNumber) {
-  const commercial = await CommercialAssignment.findOne({
-    userId,
-    orderNumber,
-    status: "pending",
-  }).populate("hotelId");
-
-if (!commercial || commercial.status !== "pending") {
-  // No commercial assignment, proceed to normal order logic below
-} else {
-  // Proceed with commercial logic
-  // (keep your existing commercial code here)
-}
-
-      // Find the pending commercial order
-      const pendingOrder = await Order.findOne({
+    if (orderNumber) {
+      const commercial = await CommercialAssignment.findOne({
         userId,
-        hotelId: commercial.hotelId._id,
-        status: "pending"
-      });
+        orderNumber,
+        status: "pending",
+      }).populate("hotelId");
 
-      if (pendingOrder) {
-        // Return pending commercial order
+      if (commercial && commercial.status === "pending") {
+        // ✅ Check for pending commercial order
+        const pendingOrder = await Order.findOne({
+          userId,
+          hotelId: commercial.hotelId?._id,
+          status: "pending"
+        });
+
+        if (pendingOrder) {
+          // ✅ Return pending commercial order
+          const hotel = commercial.hotelId;
+
+          hotel.price = commercial.price;
+          hotel.commercialPrice = commercial.price;
+          hotel.commercialAssignmentId = commercial._id;
+          hotel.orderId = pendingOrder._id;
+
+          return res.json({
+            success: true,
+            orderId: pendingOrder._id,
+            hotel,
+            pendingAmount: pendingOrder.pendingAmount,
+          });
+        }
+
+        // ✅ No pending order exists yet → create it
+        const setting = await Settings.findOne({ key: "commissionRate" });
+        const commissionRate = setting ? setting.value : 0;
+        const commission = (commercial.price * commissionRate) / 100;
+        const pendingAmount = commercial.price + commission;
+
+        const user = await User.findById(userId);
+        user.balance -= commercial.price;
+        await user.save();
+
+        const newPendingOrder = await Order.create({
+          userId,
+          hotelId: commercial.hotelId._id,
+          price: commercial.price,
+          commission,
+          pendingAmount,
+          status: "pending",
+          assignmentType: "commercial",
+          orderNumber: user.orderCount + 1,
+        });
+
         const hotel = commercial.hotelId;
-
         hotel.price = commercial.price;
         hotel.commercialPrice = commercial.price;
         hotel.commercialAssignmentId = commercial._id;
-        hotel.orderId = pendingOrder._id;
+        hotel.orderId = newPendingOrder._id;
 
         return res.json({
           success: true,
-          orderId: pendingOrder._id,
+          orderId: newPendingOrder._id,
           hotel,
-          pendingAmount: pendingOrder.pendingAmount,
+          pendingAmount,
         });
       }
-
-      // If no pending order exists yet → create it
-      const setting = await Settings.findOne({ key: "commissionRate" });
-      const commissionRate = setting ? setting.value : 0;
-      const commission = (commercial.price * commissionRate) / 100;
-      const pendingAmount = commercial.price + commission;
-
-      const user = await User.findById(userId);
-      user.balance -= commercial.price;
-      await user.save();
-
-      const newPendingOrder = await Order.create({
-        userId,
-        hotelId: commercial.hotelId._id,
-        price: commercial.price,
-        commission,
-        pendingAmount,
-        status: "pending",
-        assignmentType: "commercial",
-        orderNumber: user.orderCount + 1,
-      });
-
-      const hotel = commercial.hotelId;
-      hotel.price = commercial.price;
-      hotel.commercialPrice = commercial.price;
-      hotel.commercialAssignmentId = commercial._id;
-      hotel.orderId = newPendingOrder._id;
-
-      return res.json({
-        success: true,
-        orderId: newPendingOrder._id,
-        hotel,
-        pendingAmount,
-      });
+      // else → commercial not found or not pending → proceed with normal logic
     }
 
-    // ✅ If not a commercial order → proceed with normal logic
+    // ✅ If no commercial order → proceed with normal logic
     const user = await User.findById(userId);
 
     if (!user) {
@@ -290,7 +286,7 @@ if (!commercial || commercial.status !== "pending") {
       message: "Error starting order.",
     });
   }
-};  
+};
 
 exports.submitOrder = async (req, res) => {
   try {
