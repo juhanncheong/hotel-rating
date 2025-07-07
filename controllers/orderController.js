@@ -494,27 +494,40 @@ exports.getCommercialAssignmentForUser = async (req, res) => {
     }
 
     // Find ANY pending commercial assignment regardless of order number
-    const assignment = await CommercialAssignment.findOne({
-      userId: new mongoose.Types.ObjectId(userId),
-      assignedByAdminId: null,  // only fetch unclaimed assignments
-    }).populate("hotelId");
+const resetDate = user.orderResetAt || new Date(0);
+
+const completedCount = await Order.countDocuments({
+  userId,
+  status: "completed",
+  createdAt: { $gte: resetDate }
+});
+
+const nextOrderNumber = completedCount + 1;
+
+
+const assignment = await CommercialAssignment.findOne({
+  userId: new mongoose.Types.ObjectId(userId),
+  orderNumber: nextOrderNumber,
+  status: "pending",
+}).populate("hotelId");
 
     if (!assignment) {
       return res.json({ assignment: null });
     }
 
-    res.json({
-      assignment: {
-        _id: assignment._id,
-        hotelId: assignment.hotelId._id,
-        hotelName: assignment.hotelId.name,
-        hotelCountry: assignment.hotelId.country,
-        hotelPhotoUrl: assignment.hotelId.photoUrl,
-        hotelDescription: assignment.hotelId.description,
-        price: assignment.price,
-        orderNumber: assignment.orderNumber,
-      }
-    });
+res.json({
+  assignment: {
+    _id: assignment._id,
+    hotelId: assignment.hotelId._id,
+    hotelName: assignment.hotelId.name,
+    hotelCountry: assignment.hotelId.country,
+    hotelPhotoUrl: assignment.hotelId.photoUrl,
+    hotelDescription: assignment.hotelId.description,
+    price: assignment.price,
+    orderNumber: assignment.orderNumber,
+    pendingAmount,
+  }
+});
 
   } catch (error) {
     console.error(error);
@@ -561,7 +574,7 @@ exports.submitCommercialAssignment = async (req, res) => {
     if (user.balance < 0) {
       return res.status(400).json({
         success: false,
-        message: "Congratulations, you received a commercial assignment! Please recharge before submitting this order.",
+        message: "Congratulations, you received a commercial assignment.",
       });
     }
 
@@ -618,7 +631,16 @@ exports.getUser = async (req, res) => {
     }
 
     // compute next order number
-    const nextOrderNumber = user.orderCount + 1;
+const resetDate = user.orderResetAt || new Date(0);
+
+const completedCount = await Order.countDocuments({
+  userId,
+  status: "completed",
+  createdAt: { $gte: resetDate }
+});
+
+const nextOrderNumber = completedCount + 1;
+
 
     // check commercial assignment for next order
     const assignment = await CommercialAssignment.findOne({
