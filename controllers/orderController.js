@@ -92,9 +92,9 @@ exports.startOrder = async (req, res) => {
 const { userId, commercialAssignmentId, orderNumber } = req.body;
 
     // ✅ FIRST: check if user has a pending commercial assignment
-if (commercialAssignmentId && orderNumber) {
+if (orderNumber) {
   const commercial = await CommercialAssignment.findOne({
-    _id: commercialAssignmentId,
+    userId,
     orderNumber,
     status: "pending",
   }).populate("hotelId");
