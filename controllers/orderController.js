@@ -658,16 +658,17 @@ const nextOrderNumber = completedCount + 1;
       pendingAmount = assignment.price + commission;
     }
 
-    return res.json({
-      success: true,
-      user: {
-        id: user._id,
-        phone: user.phone,
-        balance: user.balance,
-        orderCount: user.orderCount,
-        pendingAmount,
-      }
-    });
+return res.json({
+  success: true,
+  user: {
+    id: user._id,
+    phone: user.phone,
+    balance: user.balance,
+    orderCount: user.orderCount,
+    pendingAmount,
+    nextOrderNumber,
+  }
+});
 
   } catch (error) {
     console.error(error);
