@@ -89,81 +89,10 @@ exports.getTodayProfit = async (req, res) => {
 
 exports.startOrder = async (req, res) => {
   try {
-    const { userId, commercialAssignmentId, orderNumber } = req.body;
+    const { userId } = req.body;
 
-    // ✅ FIRST: check if user has a pending commercial assignment
-    if (orderNumber) {
-      const commercial = await CommercialAssignment.findOne({
-        userId,
-        orderNumber,
-        status: "pending",
-      }).populate("hotelId");
-
-      if (commercial && commercial.status === "pending") {
-        // ✅ Check for pending commercial order
-        const pendingOrder = await Order.findOne({
-          userId,
-          hotelId: commercial.hotelId?._id,
-          status: "pending"
-        });
-
-        if (pendingOrder) {
-          // ✅ Return pending commercial order
-          const hotel = commercial.hotelId;
-
-          hotel.price = commercial.price;
-          hotel.commercialPrice = commercial.price;
-          hotel.commercialAssignmentId = commercial._id;
-          hotel.orderId = pendingOrder._id;
-
-          return res.json({
-            success: true,
-            orderId: pendingOrder._id,
-            hotel,
-            pendingAmount: pendingOrder.pendingAmount,
-          });
-        }
-
-        // ✅ No pending order exists yet → create it
-        const setting = await Settings.findOne({ key: "commissionRate" });
-        const commissionRate = setting ? setting.value : 0;
-        const commission = (commercial.price * commissionRate) / 100;
-        const pendingAmount = commercial.price + commission;
-
-        const user = await User.findById(userId);
-        user.balance -= commercial.price;
-        await user.save();
-
-        const newPendingOrder = await Order.create({
-          userId,
-          hotelId: commercial.hotelId._id,
-          price: commercial.price,
-          commission,
-          pendingAmount,
-          status: "pending",
-          assignmentType: "commercial",
-          orderNumber: user.orderCount + 1,
-        });
-
-        const hotel = commercial.hotelId;
-        hotel.price = commercial.price;
-        hotel.commercialPrice = commercial.price;
-        hotel.commercialAssignmentId = commercial._id;
-        hotel.orderId = newPendingOrder._id;
-
-        return res.json({
-          success: true,
-          orderId: newPendingOrder._id,
-          hotel,
-          pendingAmount,
-        });
-      }
-      // else → commercial not found or not pending → proceed with normal logic
-    }
-
-    // ✅ If no commercial order → proceed with normal logic
+    // Find user
     const user = await User.findById(userId);
-
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -171,20 +100,84 @@ exports.startOrder = async (req, res) => {
       });
     }
 
+    // Determine reset date
     const resetDate = user.orderResetAt || new Date(0);
 
-    const userOrderCount = await Order.countDocuments({
+    // Count completed orders
+    const completedCount = await Order.countDocuments({
       userId,
+      status: "completed",
       createdAt: { $gte: resetDate },
     });
 
-    if (userOrderCount >= 30) {
-      return res.status(403).json({
-        success: false,
-        message: "You have reached your maximum number of orders for today. Please upgrade your account.",
+    const nextOrderNumber = completedCount + 1;
+
+    // Check for commercial assignment
+    const commercial = await CommercialAssignment.findOne({
+      userId,
+      orderNumber: nextOrderNumber,
+      status: "pending",
+    }).populate("hotelId");
+
+    if (commercial && commercial.status === "pending") {
+      // Check if there's already a pending commercial order
+      const pendingOrder = await Order.findOne({
+        userId,
+        hotelId: commercial.hotelId._id,
+        status: "pending",
+      });
+
+      if (pendingOrder) {
+        const hotel = commercial.hotelId;
+
+        hotel.price = commercial.price;
+        hotel.commercialPrice = commercial.price;
+        hotel.commercialAssignmentId = commercial._id;
+        hotel.orderId = pendingOrder._id;
+
+        return res.json({
+          success: true,
+          orderId: pendingOrder._id,
+          hotel,
+          pendingAmount: pendingOrder.pendingAmount,
+        });
+      }
+
+      // No pending order yet → create one
+      const setting = await Settings.findOne({ key: "commissionRate" });
+      const commissionRate = setting ? setting.value : 0;
+      const commission = (commercial.price * commissionRate) / 100;
+      const pendingAmount = commercial.price + commission;
+
+      user.balance -= commercial.price;
+      await user.save();
+
+      const newPendingOrder = await Order.create({
+        userId,
+        hotelId: commercial.hotelId._id,
+        price: commercial.price,
+        commission,
+        pendingAmount,
+        status: "pending",
+        assignmentType: "commercial",
+        orderNumber: nextOrderNumber,
+      });
+
+      const hotel = commercial.hotelId;
+      hotel.price = commercial.price;
+      hotel.commercialPrice = commercial.price;
+      hotel.commercialAssignmentId = commercial._id;
+      hotel.orderId = newPendingOrder._id;
+
+      return res.json({
+        success: true,
+        orderId: newPendingOrder._id,
+        hotel,
+        pendingAmount,
       });
     }
 
+    // ✅ Otherwise → proceed with normal order logic
     let balance;
     if (user.trialBonus?.isActive) {
       balance = user.trialBonus.amount;
@@ -199,10 +192,10 @@ exports.startOrder = async (req, res) => {
       });
     }
 
-    // ✅ Check if the user already has a pending normal order
+    // Check for pending normal order
     const existingPendingOrder = await Order.findOne({
       userId,
-      status: "pending"
+      status: "pending",
     }).populate("hotelId");
 
     if (existingPendingOrder) {
@@ -214,39 +207,32 @@ exports.startOrder = async (req, res) => {
       });
     }
 
-    // ✅ Proceed to normal random hotel matching
-    const completedCount = await Order.countDocuments({
-      userId,
-      status: "completed",
-    });
-
-    const nextOrderNumber = user.orderCount + 1;
-
+    // Proceed with normal order matching
     const minPrice = balance * 0.8;
     const maxPrice = balance;
 
     const lastOrders = await Order.find({
       userId,
-      status: "completed"
+      status: "completed",
     }).sort({ createdAt: -1 }).limit(3);
 
     const recentlyUsedHotelIds = lastOrders.map(order => String(order.hotelId));
 
     let hotels = await Hotel.find({
       _id: { $nin: recentlyUsedHotelIds },
-      price: { $gte: minPrice, $lte: maxPrice }
+      price: { $gte: minPrice, $lte: maxPrice },
     });
 
     if (hotels.length === 0) {
       hotels = await Hotel.find({
         _id: { $nin: recentlyUsedHotelIds },
-        price: { $lte: balance }
+        price: { $lte: balance },
       });
     }
 
     if (hotels.length === 0) {
       hotels = await Hotel.find({
-        price: { $lte: balance }
+        price: { $lte: balance },
       });
     }
 
@@ -276,7 +262,7 @@ exports.startOrder = async (req, res) => {
       success: true,
       orderId: pendingOrder._id,
       hotel,
-      pendingAmount
+      pendingAmount,
     });
 
   } catch (error) {
