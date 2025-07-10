@@ -115,7 +115,6 @@ exports.startOrder = async (req, res) => {
     // Check for commercial assignment
     const commercial = await CommercialAssignment.findOne({
       userId,
-      orderNumber: nextOrderNumber,
       status: "pending",
     }).populate("hotelId");
 
